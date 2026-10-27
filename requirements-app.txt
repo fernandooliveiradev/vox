@@ -1,3 +1,4 @@
 fastapi
 uvicorn[standard]
 python-multipart
+av==15.1.0  # versão compatível com faster-whisper 1.2.x

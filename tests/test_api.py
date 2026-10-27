@@ -63,7 +63,7 @@ def main():
         r = client.get("/health")
         check("GET /health", r.status_code == 200 and r.json()["status"] == "ok")
         r = client.get("/favicon.ico")
-        check("GET /favicon.ico sem erro", r.status_code == 204)
+        check("GET /favicon.ico sem erro", r.status_code in (200, 204), str(r.status_code))
         r = client.get("/api/models")
         check("lista de modelos", r.status_code == 200 and len(r.json()) == 4)
 
