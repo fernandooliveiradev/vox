@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="512" height="512">
+  <rect x="0" y="0" width="24" height="24" rx="5.2" fill="#12151c"/>
+  <rect x="0.55" y="0.55" width="22.9" height="22.9" rx="4.7" fill="none" stroke="#2b3140" stroke-width="1.1"/>
+  <g stroke="#a99aff" stroke-width="1.9" stroke-linecap="round">
+    <path d="M4 10v4"/>
+    <path d="M8 6v12"/>
+    <path d="M12 3v18"/>
+    <path d="M16 7v10"/>
+    <path d="M20 10v4"/>
+  </g>
+</svg>

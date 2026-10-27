@@ -1,0 +1,10 @@
+
+# Builds de desktop
+build/
+dist/
+*.AppImage
+data/
+.venv/
+*.mp3
+__pycache__/
+*.pyc

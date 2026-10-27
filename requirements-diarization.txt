@@ -1,0 +1,4 @@
+# Opcional: diarização (quem falou). Requer token HF_TOKEN do HuggingFace.
+torch
+torchaudio
+pyannote.audio

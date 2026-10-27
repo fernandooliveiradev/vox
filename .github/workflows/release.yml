@@ -1,0 +1,113 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  windows:
+    name: Windows (instalador .exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Criar ambiente virtual
+        run: python -m venv .venv
+
+      - name: Instalar dependencias
+        run: |
+          .venv\Scripts\python.exe -m pip install --upgrade pip
+          .venv\Scripts\pip.exe install -r requirements-app.txt -r requirements-desktop.txt
+
+      - name: Instalar Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build
+        run: build_windows.bat
+
+      - name: Upload do instalador
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vox-Windows
+          path: |
+            dist/Vox_Setup.exe
+            dist/Vox/Vox.exe
+
+  linux:
+    name: Linux (AppImage / pasta)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Dependencias de sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-37 libgtk-3-0 libappindicator3-1 fuse
+
+      - name: Criar ambiente virtual
+        run: python -m venv .venv
+
+      - name: Instalar dependencias
+        run: |
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements-app.txt -r requirements-desktop.txt
+
+      - name: Build
+        run: bash build_linux.sh
+
+      - name: AppImage (opcional)
+        continue-on-error: true
+        run: |
+          sudo apt-get install -y wget desktop-file-utils
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool.AppImage
+          chmod +x appimagetool.AppImage
+          cat > Vox.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Vox
+          Exec=Vox
+          Icon=vox
+          Categories=Utility;
+          EOF
+          touch vox.png
+          mkdir -p Vox.AppDir
+          cp -r dist/Vox/* Vox.AppDir/
+          cp Vox.desktop Vox.AppDir/
+          cp vox.png Vox.AppDir/
+          ./appimagetool.AppImage Vox.AppDir
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vox-Linux
+          path: |
+            dist/Vox/*.AppImage
+            dist/Vox/**
+
+    # Teste automático: sobe o app empacotado e confere a resposta
+    smoke-test:
+      name: Teste de fumaça
+      needs: [windows, linux]
+      runs-on: ubuntu-22.04
+      steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Vox-Linux
+          path: vox
+      - name: Verifica se o app empacotado responde
+        run: |
+          chmod +x vox/Vox/Vox
+          ./vox/Vox/Vox --no-window &
+          sleep 8
+          curl -fsS --max-time 5 http://127.0.0.1:8000/health
+          curl -fsS --max-time 5 http://127.0.0.1:8000/ | grep -q "Transcrever" && echo "OK: interface carregada"

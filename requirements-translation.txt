@@ -1,0 +1,12 @@
+# Tradução offline EN→PT-BR.
+# Importante: instale SEM dependências pesadas (evita torch/stanza):
+#
+#   .venv/bin/pip install --no-deps argostranslate sentencepiece
+#
+# Ou simplesmente rode:
+#
+#   .venv/bin/python setup_translation.py
+#
+# O modelo EN→PT (~100 MB) é baixado na primeira tradução.
+argostranslate
+sentencepiece
