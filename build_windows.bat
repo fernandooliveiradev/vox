@@ -21,6 +21,8 @@ echo >> Gerando executavel (PyInstaller)
   --collect-all faster_whisper --collect-all ctranslate2 ^
   --collect-all av --collect-all onnxruntime --collect-all tokenizers ^
   --collect-all argostranslate --collect-all sentencepiece ^
+  --collect-all webview --collect-all bottle --collect-all proxy_tools ^
+  --hidden-import pythonnet --hidden-import clr --hidden-import webview.platforms.edgechromium ^
   --hidden-import uvicorn.logging --hidden-import uvicorn.loops.auto ^
   --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.protocols.websockets.auto ^
   --hidden-import uvicorn.lifespan.on --hidden-import uvicorn.protocols.http.h11_impl ^

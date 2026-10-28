@@ -4,17 +4,58 @@
 Uso:
     python desktop.py            # abre a janela do app
     python desktop.py --no-window # só sobe o servidor (testes/CI)
+    python desktop.py --docs      # abre a documentação
 """
+import logging
 import os
 import socket
 import sys
 import threading
 import time
+import traceback
 import webbrowser
 from pathlib import Path
 
 HOST = "127.0.0.1"
 WINDOW_TITLE = "Vox — Transcrição local"
+LOG_NAME = "vox.log"
+
+
+def ensure_stdio():
+    """Em app sem console (Windows) sys.stdout/stderr são None e quebram o logging."""
+    for name in ("stdout", "stderr"):
+        if getattr(sys, name) is None:
+            try:
+                setattr(sys, name, open(os.devnull, "w", encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def setup_logging():
+    """Log em arquivo — o cliente consegue enviar se algo der errado."""
+    try:
+        from app import DATA_DIR
+        log_path = Path(DATA_DIR) / LOG_NAME
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+            handlers=[logging.FileHandler(log_path, encoding="utf-8")],
+            force=True,
+        )
+        return log_path
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def show_error(message: str):
+    """Mostra o erro numa janela (Windows) ou no terminal (Linux)."""
+    print(message, file=sys.stderr)
+    if os.name == "nt":
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(0, message, "Vox", 0x10)
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def free_port(preferred: int = 8000) -> int:
@@ -28,11 +69,25 @@ def free_port(preferred: int = 8000) -> int:
     return 0
 
 
+def preferred_gui():
+    """Backend de janela nativa por plataforma."""
+    if os.name == "nt":
+        return "edgechromium"
+    return "qt6"  # PySide6 vem por pip: não depende de GTK/WebKit do sistema
+
+
 def start_server(port: int):
     import uvicorn
     from app import app
 
-    config = uvicorn.Config(app, host=HOST, port=port, log_level="warning", access_log=False)
+    config = uvicorn.Config(
+        app,
+        host=HOST,
+        port=port,
+        log_level="warning",
+        access_log=False,
+        log_config=None,  # sem console o dictConfig padrão do uvicorn quebra
+    )
     server = uvicorn.Server(config)
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
@@ -43,14 +98,9 @@ def start_server(port: int):
     return server
 
 
-def preferred_gui():
-    """Backend de janela nativa por plataforma."""
-    if os.name == "nt":
-        return "edgechromium"
-    return "qt6"  # PySide6 vem por pip: não depende de GTK/WebKit do sistema
-
-
 def main() -> int:
+    ensure_stdio()
+    log_path = setup_logging()
     no_window = "--no-window" in sys.argv
     only_docs = "--docs" in sys.argv
     port = free_port()
@@ -59,6 +109,7 @@ def main() -> int:
     if only_docs:
         url = f"http://{HOST}:{port}/docs"
     print(f"Vox rodando em {url}", flush=True)
+    logging.info("Vox iniciado em %s", url)
 
     if no_window:
         try:
@@ -71,7 +122,8 @@ def main() -> int:
 
     try:
         import webview
-    except ImportError:
+    except ImportError as e:
+        logging.warning("pywebview indisponivel: %s", e)
         webview = None
 
     if webview is not None:
@@ -85,9 +137,10 @@ def main() -> int:
             server.should_exit = True
             return 0
         except Exception as e:  # noqa: BLE001
-            print(f"Janela nativa indisponível ({e}). Abrindo no navegador.", flush=True)
+            logging.exception("janela nativa indisponivel")
+            print(f"Janela nativa indisponivel ({e}). Abrindo no navegador.", flush=True)
 
-    print("Abrindo no navegador padrão...", flush=True)
+    print("Abrindo no navegador padrao...", flush=True)
     webbrowser.open(url)
     try:
         while True:
@@ -99,4 +152,20 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    ensure_stdio()
+    try:
+        sys.exit(main())
+    except Exception:  # noqa: BLE001
+        detail = traceback.format_exc()
+        try:
+            from app import DATA_DIR
+            log_file = Path(DATA_DIR) / LOG_NAME
+            with log_file.open("a", encoding="utf-8") as f:
+                f.write(detail)
+        except Exception:  # noqa: BLE001
+            pass
+        show_error(
+            "O Vox encontrou um erro ao iniciar.\n\n"
+            f"Detalhes salvos em:\n{log_file if 'log_file' in dir() else 'vox.log'}"
+        )
+        sys.exit(1)
