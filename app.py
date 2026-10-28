@@ -75,7 +75,18 @@ def tool_dirs() -> list:
 def setup_bundled_tools():
     """Coloca ffmpeg/yt-dlp empacotados no PATH (builds de desktop)."""
     current = os.environ.get("PATH", "")
-    parts = [str(d) for d in tool_dirs() if str(d) not in current.split(os.pathsep)]
+    parts = []
+    for d in tool_dirs():
+        # descompactar/copiar pode perder o bit de execucao — garantimos aqui
+        for name in ("yt-dlp", "yt-dlp.exe", "ffmpeg", "ffmpeg.exe"):
+            tool = d / name
+            if tool.exists():
+                try:
+                    os.chmod(tool, 0o755)
+                except OSError:
+                    pass
+        if str(d) not in current.split(os.pathsep):
+            parts.append(str(d))
     if parts:
         os.environ["PATH"] = os.pathsep.join(parts + [current])
     os.environ.setdefault("HF_HOME", str(DATA_DIR / "models"))

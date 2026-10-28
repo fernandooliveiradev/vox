@@ -121,8 +121,14 @@ jobs:
           rm -f Vox_Setup.exe
           zip -qr Vox-Windows-portable.zip Vox || tar -czf Vox-Windows-portable.tar.gz Vox
           cd ../release-linux
-          tar -czf ../release/Vox-Linux.tar.gz .
-          ls -lh ../release
+          # o upload/download do artifact perde o bit de execucao — restaurar
+          chmod +x Vox bin/ffmpeg bin/yt-dlp 2>/dev/null || true
+          mkdir -p pack/Vox
+          cp -a . pack/Vox/
+          cd ..
+          tar -czf release/Vox-Linux.tar.gz -C release-linux/pack Vox
+          rm -rf release-linux/pack
+          ls -lh release
 
       - name: Publicar release
         env:

@@ -8,7 +8,7 @@ Roda no seu computador. Nenhum áudio ou texto é enviado para servidores.
 |---|---|---|
 | Windows 10/11 | `Vox-Installer.exe` | Instale e abra pelo menu Iniciar |
 | Windows (portátil) | `Vox-Windows-portable.zip` | Descompacte e clique em `Vox/Vox.exe` |
-| Linux x86_64 | `Vox-Linux.tar.gz` | Descompacte e rode `Vox/Vox` |
+| Linux x86_64 | `Vox-Linux.tar.gz` | Descompacte, `chmod +x Vox/Vox` e rode `./Vox/Vox` |
 
 ### Primeiros passos
 
