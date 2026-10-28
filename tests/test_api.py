@@ -5,6 +5,7 @@ Uso:
     .venv/bin/python tests/test_api.py
 """
 import json
+import os
 import re
 import sys
 import uuid
@@ -14,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app import app  # noqa: E402
+from app import app, db  # noqa: E402
 
 BASE = Path(__file__).resolve().parent.parent
 SAMPLE = Path(__file__).resolve().parent / "fixtures" / "jfk.flac"
@@ -150,6 +151,47 @@ def main():
             check("texto traduzido está em português",
                   any(w in text.lower() for w in ("portugu", "país", "patriot", "obrigado", "e assim")))
             client.delete(f"/api/history/{done[0]['id']}")
+
+        # --- licença ---
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+        import license as license_mod
+
+        r = client.get("/api/license")
+        check("GET /api/license responde", r.status_code == 200 and "status" in r.json())
+
+        r = client.post("/api/license/activate", json={"key": "VOX.CHAVE.FALSA.123"})
+        check("chave inválida é recusada", r.status_code == 400, str(r.status_code))
+
+        private = Ed25519PrivateKey.generate()
+        pub_hex = private.public_key().public_bytes(
+            serialization.Encoding.Raw, serialization.PublicFormat.Raw
+        ).hex()
+        license_mod.PUBLIC_KEY_HEX = pub_hex
+        good_key = license_mod.make_key(private, tier="pro")
+
+        r = client.post("/api/license/activate", json={"key": good_key})
+        check("chave válida é aceita", r.status_code == 200 and r.json()["status"] == "ativa",
+              r.text[:200])
+        r = client.get("/api/license")
+        check("licença ativa é reconhecida", r.json()["status"] == "ativa", r.text[:200])
+
+        with SAMPLE.open("rb") as fh:
+            r = client.post("/api/upload", files={"file": ("jfk.flac", fh, "audio/flac")})
+        fid = r.json()["file_id"]
+        r = client.get("/api/transcribe/stream", params={"file_id": fid, "model": "tiny"})
+        events = sse_events(r.text)
+        check("transcrição funciona com licença ativa",
+              any(e == "done" for e, _ in events), r.text[-200:])
+
+        # limpa a licença do banco de testes
+        with db() as conn:
+            conn.execute("DELETE FROM settings WHERE key = 'license'")
+        license_mod.PUBLIC_KEY_HEX = os.environ.get(
+            "VOX_LICENSE_PUBLIC_KEY",
+            "14561f63406bd0912e6c422f9f0abeb58b75a6cd2ee6c0784f2f3668519c8cb7",
+        )
 
         # --- API compatível com OpenAI ---
         r = client.get("/v1/models")

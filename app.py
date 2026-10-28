@@ -14,7 +14,7 @@ import time
 import uuid
 import zipfile
 from contextlib import asynccontextmanager, contextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
@@ -23,6 +23,8 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Str
 from pydantic import BaseModel
 
 from faster_whisper import WhisperModel
+
+import license
 
 FROZEN = getattr(sys, "frozen", False)
 BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
@@ -232,6 +234,47 @@ def init_db():
                 segments_json TEXT NOT NULL
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+
+
+def get_setting(key: str, default=None):
+    with db() as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(key: str, value: str):
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, str(value)),
+        )
+
+
+TRIAL_LIMIT = int(os.getenv("VOX_TRIAL_LIMIT", "3"))
+
+
+def license_state() -> dict:
+    """Estado da licença: ativa / expirada / trial / bloqueada."""
+    stored = get_setting("license")
+    if stored:
+        try:
+            info = license.verify(stored)
+            if info.get("expira_em") and info["expira_em"] < date.today().toordinal():
+                return {"status": "expirada", "tier": info["tier"]}
+            return {"status": "ativa", **info}
+        except license.LicenseError:
+            pass
+    used = int(get_setting("trial_used", "0") or 0)
+    if used < TRIAL_LIMIT:
+        return {"status": "trial", "restantes": TRIAL_LIMIT - used, "limite": TRIAL_LIMIT}
+    return {"status": "bloqueada", "restantes": 0, "limite": TRIAL_LIMIT}
 
 
 init_db()
@@ -402,6 +445,13 @@ def assign_speakers(segments: list, turns: list):
 def transcribe_events(url: str, file_id: str, model_name: str, language: str,
                       diarize: bool, translate: bool, job_id: str):
     try:
+        state = license_state()
+        if state["status"] == "bloqueada":
+            yield sse("error", {"detail": "Você usou as transcrições de teste. Ative sua licença para continuar."})
+            return
+        if state["status"] == "trial":
+            set_setting("trial_used", int(get_setting("trial_used", "0") or 0) + 1)
+
         title = None
         kind = "file" if file_id else "url"
         source = file_id or url
@@ -554,6 +604,25 @@ def favicon():
 @app.get("/api/models")
 def models():
     return [{"id": k, **v} for k, v in MODELS.items()]
+
+
+class LicenseRequest(BaseModel):
+    key: str = ""
+
+
+@app.get("/api/license")
+def license_info():
+    return license_state()
+
+
+@app.post("/api/license/activate")
+def license_activate(req: LicenseRequest):
+    try:
+        info = license.verify(req.key)
+    except license.LicenseError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    set_setting("license", license.normalize(req.key))
+    return {"status": "ativa", **info}
 
 
 @app.post("/api/upload")
