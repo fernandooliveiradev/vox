@@ -7,7 +7,8 @@ VENV="${VENV:-.venv}"
 NAME="Vox"
 OUT="dist"
 
-echo ">> Instalando dependências de desktop"
+echo ">> Instalando dependências"
+"$VENV"/bin/pip install -q -r requirements-app.txt
 "$VENV"/bin/pip install -q pyinstaller imageio-ffmpeg
 # Janela nativa no Linux via PySide6 (não depende de GTK/WebKit do sistema).
 "$VENV"/bin/pip install -q PySide6 qtpy

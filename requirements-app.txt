@@ -1,4 +1,5 @@
-fastapi
+fastapi>=0.115
 uvicorn[standard]
 python-multipart
+faster-whisper==1.2.1
 av==15.1.0  # versão compatível com faster-whisper 1.2.x

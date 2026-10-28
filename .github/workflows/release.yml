@@ -117,5 +117,9 @@ jobs:
             sleep 1
           done
           echo "app em $URL"
+          if [ -z "$URL" ]; then
+            echo "---- log do app ----"
+            cat vox.log || true
+          fi
           curl -fsS --max-time 10 "$URL/health"
           curl -fsS --max-time 10 "$URL/" | grep -q "Transcrever" && echo "OK: interface carregada"
