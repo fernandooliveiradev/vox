@@ -79,8 +79,9 @@ kill "$VOX_PID" 2>/dev/null || true
 echo ">> Reduzindo tamanho do pacote (Qt)"
 QT_DIR="$OUT/$NAME/_internal/PySide6/Qt"
 if [ -d "$QT_DIR" ]; then
-  # traduções: mantém apenas português
-  find "$QT_DIR/translations" -type f ! -name 'pt_BR*' ! -name 'qtbase_pt*' -delete 2>/dev/null || true
+  # traduções: mantém português e os locales do QtWebEngine
+  find "$QT_DIR/translations" -type f ! -name 'pt_BR*' ! -name 'qtbase_pt*' \
+    ! -path '*/qtwebengine_locales/*' -delete 2>/dev/null || true
   # módulos QML e plugins opcionais
   rm -rf "$QT_DIR/qml" "$QT_DIR/assistant" "$QT_DIR/qmlformat" "$QT_DIR/qmlls" 2>/dev/null || true
   # módulos Qt que o app não usa
@@ -92,6 +93,17 @@ if [ -d "$QT_DIR" ]; then
   done
   # cópias duplicadas de bibliotecas versionadas (o loader usa a com versão)
   find "$QT_DIR/lib" -maxdepth 1 -type f -name '*.so' -delete 2>/dev/null || true
+fi
+
+echo ">> Copiando binários auxiliares do Qt (QtWebEngineProcess)"
+QT_SRC=$("$VENV"/bin/python -c "import os, PySide6; print(os.path.join(os.path.dirname(PySide6.__file__), 'Qt', 'libexec'))")
+if [ -d "$QT_SRC" ]; then
+  mkdir -p "$OUT/$NAME/_internal/PySide6/Qt/libexec"
+  cp -a "$QT_SRC/." "$OUT/$NAME/_internal/PySide6/Qt/libexec/"
+  chmod +x "$OUT/$NAME/_internal/PySide6/Qt/libexec/"* 2>/dev/null || true
+  echo "  $(ls "$OUT/$NAME/_internal/PySide6/Qt/libexec" | tr '\n' ' ')"
+else
+  echo "  ATENÇÃO: libexec do Qt não encontrado"
 fi
 
 echo ">> Concluído: $OUT/$NAME/$NAME ($(du -sh "$OUT/$NAME" | cut -f1))"
