@@ -121,6 +121,7 @@ jobs:
           (cd release && zip -qr Vox-Windows-portable.zip Vox || tar -czf Vox-Windows-portable.tar.gz Vox)
           # o upload/download do artifact perde o bit de execucao — restaurar
           chmod +x release-linux/Vox release-linux/bin/ffmpeg release-linux/bin/yt-dlp 2>/dev/null || true
+          find release-linux -path "*PySide6/Qt/libexec/*" -type f -exec chmod +x {} \; 2>/dev/null || true
           mkdir -p pack/Vox
           cp -a release-linux/. pack/Vox/
           tar -czf release/Vox-Linux.tar.gz -C pack Vox

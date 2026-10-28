@@ -73,7 +73,7 @@ def tool_dirs() -> list:
 
 
 def setup_bundled_tools():
-    """Coloca ffmpeg/yt-dlp empacotados no PATH (builds de desktop)."""
+    """Prepara o ambiente do app empacotado (ferramentas + Qt)."""
     current = os.environ.get("PATH", "")
     parts = []
     for d in tool_dirs():
@@ -90,6 +90,34 @@ def setup_bundled_tools():
     if parts:
         os.environ["PATH"] = os.pathsep.join(parts + [current])
     os.environ.setdefault("HF_HOME", str(DATA_DIR / "models"))
+
+    # binários auxiliares do Qt (QtWebEngineProcess) podem perder a permissão
+    for base in tool_dirs():
+        libexec = base / "PySide6" / "Qt" / "libexec"
+        if not libexec.is_dir():
+            libexec = base / "_internal" / "PySide6" / "Qt" / "libexec"
+        if libexec.is_dir():
+            for f in libexec.iterdir():
+                if f.is_file():
+                    try:
+                        os.chmod(f, 0o755)
+                    except OSError:
+                        pass
+
+    # WebView em software: nao depende de GPU/driver da maquina do cliente
+    os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS",
+                          "--disable-gpu --disable-gpu-compositing --no-sandbox "
+                          "--disable-dev-shm-usage --disable-features=Vulkan")
+    os.environ.setdefault("QT_OPENGL", "software")
+    os.environ.setdefault("QT_QUICK_BACKEND", "software")
+    os.environ.setdefault("QSG_RHI_BACKEND", "software")
+    for base in tool_dirs():
+        locales = base / "PySide6" / "Qt" / "translations" / "qtwebengine_locales"
+        if not locales.is_dir():
+            locales = base / "_internal" / "PySide6" / "Qt" / "translations" / "qtwebengine_locales"
+        if locales.is_dir():
+            os.environ.setdefault("QTWEBENGINE_LOCALES_PATH", str(locales))
+            break
 
 
 setup_bundled_tools()
