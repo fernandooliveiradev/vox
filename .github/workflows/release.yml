@@ -115,11 +115,10 @@ jobs:
 
       - name: Preparar pacotes
         run: |
-          cd release
           # o GitHub bloqueia assets com nome "Vox_Setup.exe" (404) — renomeia
-          cp -f Vox_Setup.exe Vox-Installer.exe
-          rm -f Vox_Setup.exe
-          zip -qr Vox-Windows-portable.zip Vox || tar -czf Vox-Windows-portable.tar.gz Vox
+          cp -f release/Vox_Setup.exe release/Vox-Installer.exe
+          rm -f release/Vox_Setup.exe
+          (cd release && zip -qr Vox-Windows-portable.zip Vox || tar -czf Vox-Windows-portable.tar.gz Vox)
           # o upload/download do artifact perde o bit de execucao — restaurar
           chmod +x release-linux/Vox release-linux/bin/ffmpeg release-linux/bin/yt-dlp 2>/dev/null || true
           mkdir -p pack/Vox
