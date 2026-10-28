@@ -48,15 +48,36 @@ for d in (DATA_DIR, CACHE_DIR, UPLOAD_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
 
-def setup_bundled_tools():
-    """Coloca ffmpeg/yt-dlp empacotados no PATH (builds de desktop)."""
-    path = os.environ.get("PATH", "")
-    for d in (BASE_DIR / "bin", BASE_DIR):
+def tool_dirs() -> list:
+    """Pastas onde procuramos ffmpeg/yt-dlp empacotados.
+
+    No build empacotado (PyInstaller onedir) os binarios ficam em
+    <app>/bin, ao lado de _internal — por isso procuramos nos dois lugares.
+    """
+    dirs = []
+    if FROZEN:
+        exe_dir = Path(sys.executable).resolve().parent
+        meipass = Path(getattr(sys, "_MEIPASS", exe_dir))
+        dirs += [exe_dir / "bin", exe_dir, meipass / "bin", meipass]
+    else:
+        dirs += [BASE_DIR / "bin", BASE_DIR]
+    seen, out = set(), []
+    for d in dirs:
         try:
-            if d.is_dir() and str(d) not in path.split(os.pathsep):
-                os.environ["PATH"] = f"{d}{os.pathsep}{path}"
+            if d.is_dir() and str(d) not in seen:
+                seen.add(str(d))
+                out.append(d)
         except OSError:
             pass
+    return out
+
+
+def setup_bundled_tools():
+    """Coloca ffmpeg/yt-dlp empacotados no PATH (builds de desktop)."""
+    current = os.environ.get("PATH", "")
+    parts = [str(d) for d in tool_dirs() if str(d) not in current.split(os.pathsep)]
+    if parts:
+        os.environ["PATH"] = os.pathsep.join(parts + [current])
     os.environ.setdefault("HF_HOME", str(DATA_DIR / "models"))
 
 
@@ -331,11 +352,23 @@ def yt_dlp_command():
     if exe:
         return [exe]
     for name in ("yt-dlp.exe", "yt-dlp"):
-        for folder in (BASE_DIR / "bin", BASE_DIR):
+        for folder in tool_dirs():
             candidate = folder / name
             if candidate.exists():
                 return [str(candidate)]
     return ["yt-dlp"]
+
+
+def ffmpeg_path():
+    exe = shutil.which("ffmpeg")
+    if exe:
+        return exe
+    for name in ("ffmpeg.exe", "ffmpeg"):
+        for folder in tool_dirs():
+            candidate = folder / name
+            if candidate.exists():
+                return str(candidate)
+    return None
 
 
 def download_audio(url: str):
@@ -612,7 +645,15 @@ class LicenseRequest(BaseModel):
 
 @app.get("/api/license")
 def license_info():
-    return license_state()
+    state = license_state()
+    state["primeira_vez"] = not get_setting("boas_vindas_vista")
+    return state
+
+
+@app.post("/api/license/boas-vindas")
+def license_welcome():
+    set_setting("boas_vindas_vista", "1")
+    return {"ok": True}
 
 
 @app.post("/api/license/activate")

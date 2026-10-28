@@ -101,6 +101,14 @@ def start_server(port: int):
 def main() -> int:
     ensure_stdio()
     log_path = setup_logging()
+
+    if "--check-tools" in sys.argv:
+        from app import ffmpeg_path, tool_dirs, yt_dlp_command
+        print("diretórios de ferramentas:", [str(d) for d in tool_dirs()])
+        print("yt-dlp:", yt_dlp_command())
+        print("ffmpeg:", ffmpeg_path())
+        return 0
+
     no_window = "--no-window" in sys.argv
     only_docs = "--docs" in sys.argv
     port = free_port()

@@ -54,6 +54,10 @@ def main():
         return 1
 
     with TestClient(app) as client:
+        # estado limpo: zera trial e licença para o teste ser reprodutível
+        with db() as conn:
+            conn.execute("DELETE FROM settings WHERE key IN ('trial_used', 'license', 'boas_vindas_vista')")
+
         # --- páginas e health ---
         r = client.get("/")
         check("GET / responde 200", r.status_code == 200)
@@ -151,6 +155,33 @@ def main():
             check("texto traduzido está em português",
                   any(w in text.lower() for w in ("portugu", "país", "patriot", "obrigado", "e assim")))
             client.delete(f"/api/history/{done[0]['id']}")
+
+        # --- ferramentas embutidas (yt-dlp/ffmpeg) ---
+        import pathlib
+        import tempfile
+
+        import app as app_mod
+
+        fake = pathlib.Path(tempfile.mkdtemp()) / "Vox"
+        (fake / "bin").mkdir(parents=True)
+        for name in ("yt-dlp", "ffmpeg"):
+            tool = fake / "bin" / name
+            tool.write_text("#!/bin/sh\n")
+            tool.chmod(0o755)
+        old_dirs, old_frozen = app_mod.tool_dirs, app_mod.FROZEN
+        old_exe = app_mod.sys.executable
+        try:
+            app_mod.FROZEN = True
+            app_mod.sys.executable = str(fake / "Vox")
+            app_mod.tool_dirs = lambda: [fake / "bin", fake]
+            app_mod.setup_bundled_tools()
+            check("yt-dlp embutido tem prioridade", app_mod.yt_dlp_command()[0].startswith(str(fake)),
+                  str(app_mod.yt_dlp_command()))
+            check("ffmpeg embutido encontrado", (app_mod.ffmpeg_path() or "").startswith(str(fake)),
+                  str(app_mod.ffmpeg_path()))
+        finally:
+            app_mod.tool_dirs, app_mod.FROZEN = old_dirs, old_frozen
+            app_mod.sys.executable = old_exe
 
         # --- licença ---
         from cryptography.hazmat.primitives import serialization
