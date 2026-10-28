@@ -52,9 +52,12 @@ def preferred_gui():
 
 def main() -> int:
     no_window = "--no-window" in sys.argv
+    only_docs = "--docs" in sys.argv
     port = free_port()
     server = start_server(port)
     url = f"http://{HOST}:{port}/"
+    if only_docs:
+        url = f"http://{HOST}:{port}/docs"
     print(f"Vox rodando em {url}", flush=True)
 
     if no_window:
@@ -74,7 +77,8 @@ def main() -> int:
     if webview is not None:
         try:
             window = webview.create_window(
-                WINDOW_TITLE, url, width=1180, height=860, min_size=(880, 640)
+                "Vox — Documentação" if only_docs else WINDOW_TITLE,
+                url, width=1180, height=860, min_size=(880, 640)
             )
             window.events.closed += lambda: setattr(server, "should_exit", True)
             webview.start(gui=preferred_gui())

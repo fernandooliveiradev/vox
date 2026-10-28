@@ -25,7 +25,7 @@ Name: "desktopicon"; Description: "Criar atalho na área de trabalho"; GroupDesc
 
 [Files]
 Source: "dist\Vox\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "dist\WebView2Bootstrapper.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: not IsWin64 and not IsWin32 or IsWebView2Installed
+Source: "dist\WebView2Bootstrapper.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: not IsWebView2Installed
 
 [Icons]
 Name: "{group}\Vox"; Filename: "{app}\Vox.exe"
@@ -34,12 +34,11 @@ Name: "{autodesktop}\Vox"; Filename: "{app}\Vox.exe"; Tasks: desktopicon
 [Code]
 function IsWebView2Installed(): Boolean;
 var
-  RegPath: String;
+  Version: String;
 begin
-  Result := True;
-  RegPath := 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
-  if RegQueryStringValue(HKLM, RegPath, 'pv', RegPath) then
-    Result := CompareVersion(RegPath, '0.0.0.0') > 0;
+  Result := RegQueryStringValue(HKLM,
+    'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}',
+    'pv', Version);
 end;
 
 [Run]
