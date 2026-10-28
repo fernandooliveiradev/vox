@@ -94,6 +94,47 @@ jobs:
           path: dist/Vox
           if-no-files-found: error
 
+  release:
+    name: Release (links de download)
+    needs: [windows, linux, smoke-test]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: Vox-Windows
+          path: release
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: Vox-Linux
+          path: release-linux
+
+      - name: Preparar pacotes
+        run: |
+          cd release
+          zip -qr Vox-Windows-portable.zip Vox || tar -czf Vox-Windows-portable.tar.gz Vox
+          cd ../release-linux
+          tar -czf ../release/Vox-Linux.tar.gz .
+          ls -lh ../release
+
+      - name: Publicar release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release delete "${GITHUB_REF_NAME}" --yes
+          fi
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "Vox ${GITHUB_REF_NAME}" \
+            --notes-file RELEASE_NOTES.md \
+            release/Vox_Setup.exe \
+            release/Vox-Linux.tar.gz \
+            release/Vox-Windows-portable.zip
+
   # Teste automático: sobe o app empacotado e confere a resposta
   smoke-test:
     name: Teste de fumaça
