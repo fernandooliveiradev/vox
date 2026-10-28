@@ -56,13 +56,22 @@ echo "  yt-dlp -> $OUT/$NAME/bin/yt-dlp"
 echo ">> Teste rápido do executável"
 "$OUT/$NAME/$NAME" --no-window >/tmp/vox-build-test.log 2>&1 &
 VOX_PID=$!
-sleep 8
-VOX_URL=$(grep -o 'http://127.0.0.1:[0-9]*' /tmp/vox-build-test.log | head -1)
-if [ -n "$VOX_URL" ] && curl -fsS --max-time 5 "$VOX_URL/health" >/dev/null 2>&1; then
+VOX_URL=""
+for _ in $(seq 1 40); do
+  VOX_URL=$(grep -o 'http://127.0.0.1:[0-9]*' /tmp/vox-build-test.log 2>/dev/null | head -1 || true)
+  [ -n "$VOX_URL" ] && break
+  sleep 1
+done
+if [ -n "$VOX_URL" ] && curl -fsS --max-time 8 "$VOX_URL/health" >/dev/null 2>&1; then
   echo "  servidor respondeu OK em $VOX_URL"
-  curl -fsS --max-time 5 "$VOX_URL/" | grep -q "Transcrever" && echo "  interface carregada OK"
+  if curl -fsS --max-time 8 "$VOX_URL/" | grep -q "Transcrever"; then
+    echo "  interface carregada OK"
+  else
+    echo "  ATENÇÃO: interface não carregou"
+  fi
 else
   echo "  ATENÇÃO: servidor não respondeu (veja /tmp/vox-build-test.log)"
+  tail -20 /tmp/vox-build-test.log || true
 fi
 kill "$VOX_PID" 2>/dev/null || true
 

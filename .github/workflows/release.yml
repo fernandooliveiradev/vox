@@ -29,6 +29,7 @@ jobs:
         run: choco install innosetup --no-progress -y
 
       - name: Build
+        shell: cmd
         run: build_windows.bat
 
       - name: Upload do instalador
