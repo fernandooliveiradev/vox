@@ -110,7 +110,7 @@ def setup_bundled_tools():
                           "--disable-dev-shm-usage --disable-features=Vulkan")
     os.environ.setdefault("QT_OPENGL", "software")
     os.environ.setdefault("QT_QUICK_BACKEND", "software")
-    os.environ.setdefault("QSG_RHI_BACKEND", "software")
+    os.environ.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
     for base in tool_dirs():
         locales = base / "PySide6" / "Qt" / "translations" / "qtwebengine_locales"
         if not locales.is_dir():

@@ -73,7 +73,7 @@ def preferred_gui():
     """Backend de janela nativa por plataforma."""
     if os.name == "nt":
         return "edgechromium"
-    return "qt6"  # PySide6 vem por pip: não depende de GTK/WebKit do sistema
+    return "qt"  # qtpy usa PySide6; 'qt' faz o pywebview tentar Qt antes de GTK
 
 
 def start_server(port: int):
@@ -128,6 +128,7 @@ def main() -> int:
         server.should_exit = True
         return 0
 
+    os.environ["PYWEBVIEW_GUI"] = "qt"  # evita tentar GTK (que nao esta embutido)
     try:
         import webview
     except ImportError as e:
