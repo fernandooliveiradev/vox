@@ -69,6 +69,43 @@ def free_port(preferred: int = 8000) -> int:
     return 0
 
 
+def patch_webview_permissions():
+    """Corrige o handler de permissões do pywebview + PySide6 >= 6.9.
+
+    O pywebview passa int() como policy; o PySide6 6.9+ exige o enum. Sem isso,
+    o navegador nega clipboard e o botão Copiar falha.
+    """
+    try:
+        import webview.platforms.qt as qt
+        from PySide6.QtWebEngineCore import QWebEnginePage
+        web_page = getattr(qt.BrowserView, "WebPage", None)
+        if web_page is None:
+            return
+        Feature = QWebEnginePage.Feature
+        Policy = QWebEnginePage.PermissionPolicy
+        grant = []
+        for name in ("MediaAudioCapture", "MediaVideoCapture", "MediaAudioVideoCapture",
+                     "ClipboardReadWrite", "ClipboardSanitizedWrite", "Notifications",
+                     "Geolocation", "FullScreen", "DesktopVideoCapture",
+                     "DesktopAudioVideoCapture"):
+            f = getattr(Feature, name, None)
+            if f is not None:
+                grant.append(f)
+        grant = tuple(grant)
+
+        def fixed(self, url, feature):
+            try:
+                policy = (Policy.PermissionGrantedByUser if feature in grant
+                          else Policy.PermissionDeniedByUser)
+                self.setFeaturePermission(url, feature, policy)
+            except Exception:  # noqa: BLE001
+                pass
+
+        web_page.onFeaturePermissionRequested = fixed
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def preferred_gui():
     """Backend de janela nativa por plataforma."""
     if os.name == "nt":
@@ -129,11 +166,14 @@ def main() -> int:
         return 0
 
     os.environ["PYWEBVIEW_GUI"] = "qt"  # evita tentar GTK (que nao esta embutido)
+    os.environ.setdefault("HF_HUB_DISABLE_XET", "1")  # evita aviso do hf_xet no download do modelo
     try:
         import webview
     except ImportError as e:
         logging.warning("pywebview indisponivel: %s", e)
         webview = None
+    else:
+        patch_webview_permissions()
 
     if webview is not None:
         try:

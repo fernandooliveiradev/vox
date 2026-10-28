@@ -96,7 +96,7 @@ if [ -d "$QT_DIR" ]; then
 fi
 
 echo ">> Removendo libstdc++/fontconfig do pacote (usa as do sistema)"
-rm -f "$OUT/$NAME/_internal/libstdc++.so.6"* "$OUT/$NAME/_internal/libfontconfig.so.1"* 2>/dev/null || true
+rm -f "$OUT/$NAME/_internal/libstdc++.so.6"* "$OUT/$NAME/_internal/libfontconfig.so.1"* "$OUT/$NAME/_internal/libxkbcommon.so.0"* 2>/dev/null || true
 
 echo ">> Copiando binários auxiliares do Qt (QtWebEngineProcess)"
 QT_SRC=$("$VENV"/bin/python -c "import os, PySide6; print(os.path.join(os.path.dirname(PySide6.__file__), 'Qt', 'libexec'))")
