@@ -116,6 +116,9 @@ jobs:
       - name: Preparar pacotes
         run: |
           cd release
+          # o GitHub bloqueia assets com nome "Vox_Setup.exe" (404) — renomeia
+          cp -f Vox_Setup.exe Vox-Installer.exe
+          rm -f Vox_Setup.exe
           zip -qr Vox-Windows-portable.zip Vox || tar -czf Vox-Windows-portable.tar.gz Vox
           cd ../release-linux
           tar -czf ../release/Vox-Linux.tar.gz .
@@ -131,7 +134,7 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" \
             --title "Vox ${GITHUB_REF_NAME}" \
             --notes-file RELEASE_NOTES.md \
-            release/Vox_Setup.exe \
+            release/Vox-Installer.exe \
             release/Vox-Linux.tar.gz \
             release/Vox-Windows-portable.zip
 
