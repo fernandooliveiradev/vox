@@ -37,10 +37,11 @@ curl -fsSL "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -o "%OUT%\WebView
 
 echo >> Concluido: %OUT%\%NAME%\Vox.exe
 
-set ISCC="C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+set ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe
 if exist "%ISCC%" (
   echo >> Gerando instalador (Inno Setup)
   "%ISCC%" installer.iss
+  if errorlevel 1 echo >> AVISO: o instalador nao pode ser gerado (verifique o log do Inno Setup)
 ) else (
   echo >> Inno Setup nao encontrado. Instale em https://jrsoftware.org/isdl.php para gerar o instalador.
 )
