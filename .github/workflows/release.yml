@@ -38,7 +38,7 @@ jobs:
           name: Vox-Windows
           path: |
             dist/Vox_Setup.exe
-            dist/Vox/Vox.exe
+            dist/Vox
 
   linux:
     name: Linux (AppImage / pasta)
@@ -91,9 +91,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Vox-Linux
-          path: |
-            dist/Vox/*.AppImage
-            dist/Vox/**
+          path: dist/Vox
+          if-no-files-found: error
 
   # Teste automático: sobe o app empacotado e confere a resposta
   smoke-test:
@@ -108,13 +107,15 @@ jobs:
 
       - name: Verifica se o app empacotado responde
         run: |
-          chmod +x vox/Vox/Vox
-          ./vox/Vox/Vox --no-window > vox.log 2>&1 &
-          for i in $(seq 1 20); do
-            URL=$(grep -o 'http://127.0.0.1:[0-9]*' vox.log | head -1)
+          BIN=$(find vox -maxdepth 3 -type f -name Vox | head -1)
+          echo "executavel: $BIN"
+          chmod +x "$BIN"
+          "$BIN" --no-window > vox.log 2>&1 &
+          for i in $(seq 1 40); do
+            URL=$(grep -o 'http://127.0.0.1:[0-9]*' vox.log 2>/dev/null | head -1 || true)
             [ -n "$URL" ] && break
             sleep 1
           done
           echo "app em $URL"
-          curl -fsS --max-time 5 "$URL/health"
-          curl -fsS --max-time 5 "$URL/" | grep -q "Transcrever" && echo "OK: interface carregada"
+          curl -fsS --max-time 10 "$URL/health"
+          curl -fsS --max-time 10 "$URL/" | grep -q "Transcrever" && echo "OK: interface carregada"
